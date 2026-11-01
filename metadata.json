@@ -1,0 +1,6 @@
+{
+  "name": "PIJAR SPENTA",
+  "description": "Platform manajemen pembelajaran terpadu untuk sekolah (Admin, Guru, Siswa) dengan database Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

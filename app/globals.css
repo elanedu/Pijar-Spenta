@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   PENGATURAN CETAK DOKUMEN RESMI (@media print)
+   Spesifikasi cetak A4 portrait / landscape untuk Rekap Nilai, Presensi, dan Raport
+   ============================================================================= */
+
+@media print {
+  /* Sembunyikan elemen non-cetak (Sidebar, Navbar, Tombol Cetak/Aksi) */
+  .no-print,
+  aside,
+  nav,
+  header button,
+  button:not(.allow-print) {
+    display: none !important;
+  }
+
+  /* Reset layout halaman untuk kertas fisik */
+  body,
+  html {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Halaman cetak bersih tanpa box-shadow atau background gelap */
+  .print-clean {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hindari pemotongan baris tabel di tengah-tengah pergantian kertas */
+  tr,
+  table,
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Judul dan header halaman cetak */
+  h1, h2, h3, h4 {
+    color: #000000 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Aturan ukuran kertas standar A4 portrait */
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm 1.5cm 1.5cm 1.5cm;
+  }
+
+  /* Mode landscape khusus laporan tabel lebar (rekap semester) */
+  @page landscape-mode {
+    size: A4 landscape;
+    margin: 1.2cm 1.2cm 1.2cm 1.2cm;
+  }
+
+  .print-landscape {
+    page: landscape-mode;
+  }
+}
