@@ -200,37 +200,106 @@ async function startServer() {
   });
 
   app.post('/api/admin/users', async (req: Request, res: Response) => {
-    if (!(await requireAdmin(req, res))) return;
-    const { id, username, password, role, nama, email, aktif, action } = req.body || {};
-    const { hashPassword } = await import('./lib/auth.ts');
-    const { appendRow, updateRow } = await import('./lib/sheets.ts');
-    const { generateId, getTimestamp } = await import('./lib/utils.ts');
+    try {
+      if (!(await requireAdmin(req, res))) return;
+      const { id, username, password, role, nama, email, aktif, action } = req.body || {};
+      const { hashPassword } = await import('./lib/auth.ts');
+      const { appendRow, updateRow, readSheet } = await import('./lib/sheets.ts');
+      const { generateId, getTimestamp } = await import('./lib/utils.ts');
 
-    if (action === 'reset_password') {
-      if (!id || !password) return res.status(400).json(apiError('ID dan password baru diperlukan.'));
-      await updateRow('USERS', id, { password_hash: hashPassword(password) }, 'id');
-      return res.json(apiSuccess(null, 'Password berhasil direset.'));
+      if (action === 'reset_password') {
+        if (!id || !password) return res.status(400).json(apiError('ID dan password baru diperlukan.'));
+        await updateRow('USERS', id, { password_hash: hashPassword(String(password)) }, 'id');
+        return res.json(apiSuccess(null, 'Password berhasil direset.'));
+      }
+
+      if (id) {
+        const updateData: any = { role, nama, email: email || '', aktif: aktif || 'Ya' };
+        if (username) updateData.username = String(username).trim().toLowerCase();
+        if (password && String(password).trim()) {
+          updateData.password_hash = hashPassword(String(password).trim());
+        }
+        await updateRow('USERS', id, updateData, 'id');
+        return res.json(apiSuccess(null, 'User berhasil diperbarui.'));
+      }
+
+      // Validasi penambahan user baru
+      const cleanUsername = String(username || '').trim().toLowerCase();
+      if (!cleanUsername) {
+        return res.status(400).json(apiError('Username wajib diisi.'));
+      }
+      if (!nama || !String(nama).trim()) {
+        return res.status(400).json(apiError('Nama lengkap pengguna wajib diisi.'));
+      }
+
+      // Periksa apakah username sudah terdaftar
+      const allUsers = await readSheet<any>('USERS');
+      const isDuplicate = allUsers.some(
+        (u) => String(u.username || '').trim().toLowerCase() === cleanUsername
+      );
+      if (isDuplicate) {
+        return res
+          .status(400)
+          .json(apiError(`Username '${cleanUsername}' sudah terdaftar. Silakan gunakan username lain.`));
+      }
+
+      const initialPassword = String(password || 'pijar123').trim();
+      const newId = generateId('USR');
+      const userRole = role || 'siswa';
+
+      await appendRow('USERS', {
+        id: newId,
+        username: cleanUsername,
+        password_hash: hashPassword(initialPassword),
+        role: userRole,
+        nama: String(nama).trim(),
+        email: email ? String(email).trim() : `${cleanUsername}@pijar-spenta.sch.id`,
+        aktif: aktif || 'Ya',
+        timestamp: getTimestamp(),
+      });
+
+      // Sinkronisasi otomatis ke data profil akademik
+      if (userRole === 'guru') {
+        const gurus = await readSheet<any>('GURU');
+        const exists = gurus.some((g) => g.user_id === newId || g.nip === cleanUsername);
+        if (!exists) {
+          await appendRow('GURU', {
+            id: generateId('GRU'),
+            user_id: newId,
+            nip: cleanUsername,
+            nama: String(nama).trim(),
+            mapel_utama: 'Umum',
+            status: aktif === 'Tidak' ? 'Nonaktif' : 'Aktif',
+          });
+        }
+      } else if (userRole === 'siswa') {
+        const siswas = await readSheet<any>('SISWA');
+        const exists = siswas.some((s) => s.user_id === newId || s.nis === cleanUsername);
+        if (!exists) {
+          await appendRow('SISWA', {
+            id: generateId('SIS'),
+            user_id: newId,
+            nis: cleanUsername,
+            nama: String(nama).trim(),
+            kelas: '7A',
+            jenis_kelamin: 'L',
+            aktif: aktif || 'Ya',
+            email: email ? String(email).trim() : `${cleanUsername}@siswa.pijar-spenta.sch.id`,
+            foto: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanUsername}`,
+          });
+        }
+      }
+
+      return res.status(201).json(
+        apiSuccess(
+          { id: newId, username: cleanUsername, role: userRole },
+          `Pengguna baru '${cleanUsername}' berhasil ditambahkan.`
+        )
+      );
+    } catch (err: any) {
+      console.error('Error in POST /api/admin/users:', err);
+      return res.status(500).json(apiError(`Gagal menambahkan user: ${err.message}`));
     }
-
-    if (id) {
-      const updateData: any = { username, role, nama, email, aktif };
-      if (password) updateData.password_hash = hashPassword(password);
-      await updateRow('USERS', id, updateData, 'id');
-      return res.json(apiSuccess(null, 'User berhasil diperbarui.'));
-    }
-
-    const newId = generateId('USR');
-    await appendRow('USERS', {
-      id: newId,
-      username: username?.trim().toLowerCase(),
-      password_hash: hashPassword(password),
-      role: role || 'siswa',
-      nama,
-      email: email || '',
-      aktif: aktif || 'Ya',
-      timestamp: getTimestamp(),
-    });
-    res.status(201).json(apiSuccess({ id: newId }, 'User berhasil ditambahkan.'));
   });
 
   app.delete('/api/admin/users', async (req: Request, res: Response) => {

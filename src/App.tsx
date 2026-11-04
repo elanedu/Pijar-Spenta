@@ -91,7 +91,11 @@ export default function App() {
 
   const checkSession = async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const token = localStorage.getItem('pijar_spenta_token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/auth/me', { headers });
       const json = await res.json();
       if (json.success && json.data) {
         setUser(json.data);
@@ -134,6 +138,9 @@ export default function App() {
       }
 
       const loggedUser = result.data.user;
+      if (result.data.token) {
+        localStorage.setItem('pijar_spenta_token', result.data.token);
+      }
       setUser(loggedUser);
       setToastMessage(`Login berhasil! Selamat datang, ${loggedUser.nama}.`);
 
@@ -153,6 +160,7 @@ export default function App() {
     } catch {
       // Abaikan
     }
+    localStorage.removeItem('pijar_spenta_token');
     setUser(null);
     setCurrentPath('/login');
     setToastMessage('Anda telah berhasil keluar (Logout).');

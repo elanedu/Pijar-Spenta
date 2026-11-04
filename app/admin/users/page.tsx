@@ -50,6 +50,7 @@ export default function AdminUsersPage() {
 
   const [newPassword, setNewPassword] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchUsers = async () => {
@@ -79,6 +80,7 @@ export default function AdminUsersPage() {
     setFormEmail('');
     setFormRole('siswa');
     setFormAktif('Ya');
+    setFormError(null);
     setIsFormOpen(true);
   };
 
@@ -90,6 +92,7 @@ export default function AdminUsersPage() {
     setFormEmail(u.email || '');
     setFormRole(u.role);
     setFormAktif(u.aktif || 'Ya');
+    setFormError(null);
     setIsFormOpen(true);
   };
 
@@ -101,12 +104,13 @@ export default function AdminUsersPage() {
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     setSubmitting(true);
     try {
       const payload: any = {
-        username: formUsername,
-        nama: formNama,
-        email: formEmail,
+        username: formUsername.trim(),
+        nama: formNama.trim(),
+        email: formEmail.trim(),
         role: formRole,
         aktif: formAktif,
       };
@@ -126,12 +130,14 @@ export default function AdminUsersPage() {
 
       const json = await res.json();
       if (json.success) {
-        setToastMessage(selectedUser ? 'Pengguna diperbarui.' : 'Pengguna baru ditambahkan.');
+        setToastMessage(selectedUser ? 'Pengguna diperbarui.' : `Pengguna baru '${payload.username}' berhasil ditambahkan.`);
         setIsFormOpen(false);
         fetchUsers();
       } else {
-        alert(json.message || 'Gagal menyimpan.');
+        setFormError(json.message || 'Gagal menyimpan pengguna.');
       }
+    } catch (err: any) {
+      setFormError('Terjadi kesalahan jaringan atau server: ' + (err.message || 'Koneksi terputus.'));
     } finally {
       setSubmitting(false);
     }
@@ -223,6 +229,21 @@ export default function AdminUsersPage() {
           >
             Tambah Pengguna
           </Button>
+        </div>
+      </div>
+
+      {/* Petunjuk Penggunaan Cepat */}
+      <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3.5 text-xs text-blue-900 flex items-start gap-3">
+        <div className="p-1.5 bg-blue-100 rounded-lg text-blue-700 shrink-0 mt-0.5">
+          <AlertCircle className="w-4 h-4" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-bold text-blue-950">Cara Menambahkan Akun Pengguna Baru:</p>
+          <p className="text-blue-800 leading-relaxed">
+            1. Klik tombol biru <strong>+ Tambah Pengguna</strong> di kanan atas. <br />
+            2. Masukkan <strong>Nama Lengkap</strong>, <strong>Username</strong> unik (misal: <code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900">guru_anwar</code> atau <code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900">1011</code>), dan <strong>Password</strong>. <br />
+            3. Pilih Peran (<strong>Admin</strong>, <strong>Guru</strong>, atau <strong>Siswa</strong>). Akun Guru & Siswa akan langsung disinkronkan ke master data akademik secara otomatis!
+          </p>
         </div>
       </div>
 
@@ -350,6 +371,13 @@ export default function AdminUsersPage() {
         description="Isi kredensial akun dan perannya dalam sistem"
       >
         <form onSubmit={handleSaveUser} className="space-y-4">
+          {formError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+
           <Input
             label="Nama Lengkap"
             placeholder="Contoh: Drs. H. Ahmad Dahlan"
